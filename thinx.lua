@@ -12,33 +12,35 @@ mqtt_client = null
 
 -- Prerequisite: WiFi connection
 function connect(ssid, password)
-    wifi.setmode(wifi.STATION)
-    wifi.sta.config(ssid, password)
-    wifi.sta.connect()
-    tmr.alarm(1, 5000, 1, function()
-        if wifi.sta.getip() == nil then
-            print("Connecting " .. ssid .. "...")
-        else
-            tmr.stop(1)
-            print("Connected to " .. ssid .. ", IP is "..wifi.sta.getip())
-            thinx_register()
-            if THINX_UDID ~= "" then
-                do_mqtt()
-            end
-        end
-    end)
+  wifi.setmode(wifi.STATION)
+  wifi.sta.config(ssid, password)
+  wifi.sta.connect()
+  tmr.alarm(1, 5000, 1, function()
+    if wifi.sta.getip() == nil then
+      print("Connecting " .. ssid .. "...")
+    else
+      tmr.stop(1)
+      print("Connected to " .. ssid .. ", IP is "..wifi.sta.getip())
+      thinx_register()      
+    end
+  end)
 end
 
+function registration_json_body()
+  return '{"registration": {"mac": "'..thinx_device_mac()..'", "firmware": "'..THINX_FIRMWARE_VERSION..'", "commit": "' .. THINX_COMMIT_ID .. '", "version": "'..THINX_FIRMWARE_VERSION_SHORT..'", "checksum": "' .. THINX_COMMIT_ID .. '", "alias": "' .. THINX_DEVICE_ALIAS .. '", "udid" :"' ..THINX_UDID..'", "owner" : "'..THINX_DEVICE_OWNER..'", "platform":"nodemcu" }}'
+end
+
+-- devuce registration request
 function thinx_register()
   restore_device_info()
-  url = 'http://thinx.cloud:7442/device/register' --  register/check-in device
+  url = 'http://thinx.cloud:7442/device/register'
   headers = 'Authentication:' .. THINX_API_KEY .. '\r\n' ..
             'Accept: application/json\r\n' ..
             'Origin: device\r\n' ..
             'Content-Type: application/json\r\n' ..
             'User-Agent: THiNX-Client\r\n'
-  data = '{"registration": {"mac": "'..thinx_device_mac()..'", "firmware": "'..THINX_FIRMWARE_VERSION..'", "commit": "' .. THINX_COMMIT_ID .. '", "version": "'..THINX_FIRMWARE_VERSION_SHORT..'", "checksum": "' .. THINX_COMMIT_ID .. '", "alias": "' .. THINX_DEVICE_ALIAS .. '", "udid" :"' ..THINX_UDID..'", "owner" : "'..THINX_DEVICE_OWNER..'", "platform":"nodemcu" }}'
-  print(data)
+  data = registration_json_body()
+  print("Registration request: " .. data)
   http.post(url, headers, data,
     function(code, data)
       if (code < 0) then
@@ -52,17 +54,17 @@ function thinx_register()
   end)
 end
 
+-- firmware update request
 function thinx_update(commit, checksum)
-  url = 'http://thinx.cloud:7442/device/firmware' --  register/check-in device
+  url = 'http://thinx.cloud:7442/device/firmware'
   headers = 'Authentication: ' .. THINX_API_KEY .. '\r\n' ..
             'Accept: */*\r\n' ..
             'Origin: device\r\n' ..
             'Content-Type: application/json\r\n' ..
             'User-Agent: THiNX-Client\r\n'
 
-  -- API expects: mac, udid, commit, owner, checksum (should be optional)
-  data = '{"registration": {"mac": "'..thinx_device_mac()..'", "firmware": "'..THINX_FIRMWARE_VERSION..'", "commit": "' .. THINX_COMMIT_ID .. '", "version": "'..THINX_FIRMWARE_VERSION_SHORT..'", "checksum": "' .. THINX_COMMIT_ID .. '", "alias": "' .. THINX_DEVICE_ALIAS .. '", "udid" :"' ..THINX_UDID..'", "owner" : "'..THINX_DEVICE_OWNER..'", "platform":"nodemcu" }}'
-  print(data)
+  data = registration_json_body()
+  print("Updaterequest: " .. data)
   http.post(url, headers, body,
     function(code, data)
       if (code < 0) then
@@ -119,25 +121,25 @@ end
 
 -- provides only current status as JSON so it can be loaded/saved independently
 function get_device_info()
-  
+
   device_info = {}
-  
+
   if THINX_DEVICE_ALIAS ~= "" then
     device_info['alias'] = THINX_DEVICE_ALIAS
   end
-  
+
   if THINX_DEVICE_OWNER ~= "" then
     device_info['owner'] = THINX_DEVICE_OWNER
   end
-  
+
   if THINX_API_KEY~= "" then
     device_info['apikey'] = THINX_API_KEY
   end
-  
+
   if THINX_UDID ~= "" then
     device_info['udid'] = THINX_UDID
   end
-  
+
   device_info['platform'] = "nodemcu"
 
   return device_info
@@ -215,18 +217,29 @@ function do_mqtt()
 
     print("MQTT connection with "..THINX_UDID.." and "..THINX_API_KEY)
 
-    mqtt_client = mqtt.Client(node.chipid(), 120, THINX_UDID, THINX_API_KEY) -- should be udid/apikey
+    mqtt_client = mqtt.Client(node.chipid(), KEEPALIVE, THINX_UDID, THINX_API_KEY)
     mqtt_client:lwt("/lwt", "{ \"connected\":false }", 0, 0)
 
     mqtt_client:on("connect", function(client)
         print ("m:connect01")
         mqtt_client:subscribe("/device/"..THINX_UDID, 0, function(client) print("m:subscribe01 success") end)
-        mqtt_client:publish("/device/"..THINX_UDID,"{ \"message\" : \"HELO-01\" }",0,0)
+        mqtt_client:publish("/device/"..THINX_UDID, registration_json_body(), 0, 0)
     end)
 
     mqtt_client:on("offline", function(client)
-        print ("m:offline")
+        print ("m:offline, attemt to reconnect...")
         mqtt_client:close();
+
+        mqtt_client:connect(THINX_MQTT_URL, THINX_MQTT_PORT, KEEPALIVE, THINX_UDID, THINX_API_KEY,
+        function(client)
+            print("m:connect02")
+            mqtt_client:subscribe("/device/"..THINX_UDID, 0, function(client) print("m:subscribe02 success") end)
+            mqtt_client:publish("/device/"..THINX_UDID,"{ \"message\" : \"HELO-02\" }",0,0)
+        end,
+        function(client, reason)
+            print("failed reason: "..reason)
+        end)
+
     end)
 
     mqtt_client:on("message", function(client, topic, data)
@@ -236,18 +249,6 @@ function do_mqtt()
         if data ~= nil then print("message: " .. data) end
     end)
 
-    print("Connecting to MQTT to " .. THINX_MQTT_URL .. "...")
-
-    mqtt_client:connect(THINX_MQTT_URL, THINX_MQTT_PORT, KEEPALIVE, THINX_UDID, THINX_API_KEY,
-    function(client)
-        print("m:connect02")
-        mqtt_client:subscribe("/device/"..THINX_UDID, 0, function(client) print("m:subscribe02 success") end)
-        mqtt_client:publish("/device/"..THINX_UDID,"{ \"message\" : \"HELO-02\" }",0,0)
-    end,
-    function(client, reason)
-        print("failed reason: "..reason)
-    end
-)
 end
 
 function process_mqtt(payload)
