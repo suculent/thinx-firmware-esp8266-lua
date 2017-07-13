@@ -259,7 +259,7 @@ function process_mqtt_payload(payload_json)
 
   local payload = cjson.decode(payload_json)
 
-  print("Processing MQTT payload: " .. msg);
+  print("Processing MQTT payload: " .. payload);
 
   local msg = payload['message']
   if msg then
