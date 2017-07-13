@@ -1,4 +1,5 @@
 -- THiNX Example device application
+-- Requires following nodemcu modules: http,mqtt,net,cjson,wifi
 
 -- Roadmap:
 -- TEST: Perform update request and flash firmware over-the-air
@@ -21,7 +22,10 @@ function connect(ssid, password)
     else
       tmr.stop(1)
       print("Connected to " .. ssid .. ", IP is "..wifi.sta.getip())
-      thinx_register()      
+      thinx_register()
+      if THINX_UDID ~= "" then
+        do_mqtt()
+      end
     end
   end)
 end
@@ -223,23 +227,13 @@ function do_mqtt()
     mqtt_client:on("connect", function(client)
         print ("m:connect01")
         mqtt_client:subscribe("/device/"..THINX_UDID, 0, function(client) print("m:subscribe01 success") end)
-        mqtt_client:publish("/device/"..THINX_UDID, registration_json_body(), 0, 0)
+        mqtt_client:publish("/device/"..THINX_UDID.."/status", registration_json_body(), 0, 0)
     end)
 
     mqtt_client:on("offline", function(client)
-        print ("m:offline, attemt to reconnect...")
-        mqtt_client:close();
-
-        mqtt_client:connect(THINX_MQTT_URL, THINX_MQTT_PORT, KEEPALIVE, THINX_UDID, THINX_API_KEY,
-        function(client)
-            print("m:connect02")
-            mqtt_client:subscribe("/device/"..THINX_UDID, 0, function(client) print("m:subscribe02 success") end)
-            mqtt_client:publish("/device/"..THINX_UDID,"{ \"message\" : \"HELO-02\" }",0,0)
-        end,
-        function(client, reason)
-            print("failed reason: "..reason)
-        end)
-
+        print ("m:offline, closing client?")
+        --mqtt_client:close();
+        --do_mqtt();
     end)
 
     mqtt_client:on("message", function(client, topic, data)
@@ -248,6 +242,18 @@ function do_mqtt()
         process_mqtt(data)
         if data ~= nil then print("message: " .. data) end
     end)
+
+    print("Connecting to MQTT to " .. THINX_MQTT_URL .. "...")
+
+    mqtt_client:connect(THINX_MQTT_URL, THINX_MQTT_PORT, KEEPALIVE, THINX_UDID, THINX_API_KEY,
+        function(client)
+            print("m:connect02")
+            mqtt_client:subscribe("/device/"..THINX_UDID, 0, function(client) print("m:subscribe02 success") end)
+            mqtt_client:publish("/device/"..THINX_UDID.."/status", "{ \"message\" : \"HELO-02\" }",0,0)
+        end,
+        function(client, reason)
+            print("failed reason: "..reason)
+        end)
 
 end
 
