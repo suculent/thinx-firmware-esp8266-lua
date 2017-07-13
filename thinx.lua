@@ -214,16 +214,25 @@ function do_mqtt()
     restore_device_info()
 
     KEEPALIVE = 120
+    CLEANSESSION = false -- keep retained messages
 
-    print("MQTT connection with "..THINX_UDID.." and "..THINX_API_KEY)
+    print("Initializing MQTT client "..THINX_UDID.." / "..THINX_API_KEY)
 
-    mqtt_client = mqtt.Client(node.chipid(), KEEPALIVE, THINX_UDID, THINX_API_KEY)
-    mqtt_client:lwt("/lwt", '{"connected":false', 0, 0)
+    mqtt_client = mqtt.Client(node.chipid(), KEEPALIVE, THINX_UDID, THINX_API_KEY, CLEANSESSION)
+
+    MQTT_QOS = 0
+    MQTT_RETAIN = false
+
+    MQTT_LWT_QOS = 0
+    MQTT_LWT_RETAIN = true
+    mqtt_client:lwt("/lwt", '{"connected":false', MQTT_LWT_QOS, MQTT_LWT_RETAIN)
+
+    MQTT_DEVICE_QOS = 2 -- do not loose anything, require confirmation... (may not be supported)
 
     mqtt_client:on("connect", function(client)
-        print ("m:connect01")
-        mqtt_client:subscribe("/device/"..THINX_UDID, 0, function(client) print("m:subscribe01 success") end)
-        mqtt_client:publish("/device/"..THINX_UDID.."/status", registration_json_body(), 0, 0)
+        print ("m:connect-01, subscribing to device topic, publishing registration status...")
+        mqtt_client:subscribe("/device/"..THINX_UDID, MQTT_DEVICE_QOS, function(client) print("m:subscribe01 success") end)
+        mqtt_client:publish("/device/"..THINX_UDID.."/status", registration_json_body(), MQTT_QOS, MQTT_RETAIN)
     end)
 
     mqtt_client:on("offline", function(client)
@@ -234,18 +243,20 @@ function do_mqtt()
 
     mqtt_client:on("message", function(client, topic, data)
       print("m:message")
-        print(topic .. ":" )
-        process_mqtt(data)
-        if data ~= nil then print("message: " .. data) end
+        print("topic: " .. topic)
+        if data ~= nil then
+          print("message: " .. data)
+          process_mqtt(data)
+        end
     end)
 
     print("Connecting to MQTT to " .. THINX_MQTT_URL .. "...")
 
     mqtt_client:connect(THINX_MQTT_URL, THINX_MQTT_PORT, KEEPALIVE, THINX_UDID, THINX_API_KEY,
         function(client)
-            print("m:connect02")
+            print ("m:connect-02, subscribing to device topic, publishing registration status...")
             mqtt_client:subscribe("/device/"..THINX_UDID, 0, function(client) print("m:subscribe02 success") end)
-            mqtt_client:publish("/device/"..THINX_UDID.."/status", "{ \"message\" : \"HELO-02\" }",0,0)
+            mqtt_client:publish("/device/"..THINX_UDID.."/status", '{ "status" : "OK", "success" : true }', 0, 0)
         end,
         function(client, reason)
             print("failed reason: "..reason)

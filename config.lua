@@ -1,3 +1,7 @@
+THINX_API_KEY="88eb20839c1d8bf43819818b75a25cef3244c28e77817386b7b73b043193cef4"
+THINX_DEVICE_OWNER="cedc16bb6bb06daaa3ff6d30666d91aacd6e3efbf9abbc151b4dcade59af7c12"
+THINX_DEVICE_ALIAS="nodemcu-lua-test"
+
 -- beginning of machine-generated header
 -- This is an auto-generated stub, it will be pre-pended by THiNX on cloud build.
 
@@ -13,9 +17,6 @@ THINX_UDID = "" -- each build is specific only for given udid to prevent data le
 -- dynamic variables (adjustable by user but overridden from API)
 THINX_CLOUD_URL="thinx.cloud" -- can change to proxy (?)
 THINX_MQTT_URL="thinx.cloud" -- should try thinx.local first for proxy
-THINX_API_KEY="88eb20839c1d8bf43819818b75a25cef3244c28e77817386b7b73b043193cef4"
-THINX_DEVICE_ALIAS="nodemcu-lua-test"
-THINX_DEVICE_OWNER="cedc16bb6bb06daaa3ff6d30666d91aacd6e3efbf9abbc151b4dcade59af7c12"
 THINX_AUTO_UPDATE=true
 
 THINX_MQTT_PORT = 1883
