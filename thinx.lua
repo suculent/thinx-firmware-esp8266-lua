@@ -5,7 +5,10 @@ dofile("config.lua") -- must contain 'ssid', 'password'
 
 mqtt_client = null
 
--- Prerequisite: WiFi connection
+function registration_json_body()
+  return '{"registration": {"mac": "'..thinx_device_mac()..'", "firmware": "'..THINX_FIRMWARE_VERSION..'", "commit": "' .. THINX_COMMIT_ID .. '", "version": "'..THINX_FIRMWARE_VERSION_SHORT..'", "checksum": "' .. THINX_COMMIT_ID .. '", "alias": "' .. THINX_DEVICE_ALIAS .. '", "udid" :"' ..THINX_UDID..'", "owner" : "'..THINX_DEVICE_OWNER..'", "platform":"nodemcu" }}'
+end
+
 function connect(ssid, password)
   wifi.setmode(wifi.STATION)
   wifi.sta.config(ssid, password)
@@ -22,10 +25,6 @@ function connect(ssid, password)
       end
     end
   end)
-end
-
-function registration_json_body()
-  return '{"registration": {"mac": "'..thinx_device_mac()..'", "firmware": "'..THINX_FIRMWARE_VERSION..'", "commit": "' .. THINX_COMMIT_ID .. '", "version": "'..THINX_FIRMWARE_VERSION_SHORT..'", "checksum": "' .. THINX_COMMIT_ID .. '", "alias": "' .. THINX_DEVICE_ALIAS .. '", "udid" :"' ..THINX_UDID..'", "owner" : "'..THINX_DEVICE_OWNER..'", "platform":"nodemcu" }}'
 end
 
 -- devuce registration request
@@ -145,7 +144,6 @@ end
 
 -- apply given device info to current runtime environment
 function apply_device_info(info)
-    -- TODO: import arbitrary data if secure?
     if info['alias'] ~= nil then
         THINX_DEVICE_ALIAS = info['alias']
     end
@@ -170,21 +168,6 @@ function save_device_info()
     file.close()
   else
     print("THINX: failed to open config file for writing")
-  end
-end
-
--- update firmware and reboot
-function update_and_reboot(data)
-  if file.open("thinx.tmp", "w") then
-    print("THINX: installing new firmware...")
-    file.write(data)
-    file.close()
-    -- if success only
-    file.rename("thinx.tmp", "thinx.lua")
-    print("THINX: rebooting...")
-    node.restart()
-  else
-    print("THINX: failed to open thinx.lua for writing!")
   end
 end
 
@@ -220,25 +203,29 @@ function do_mqtt()
 
     mqtt_client = mqtt.Client(node.chipid(), KEEPALIVE, THINX_UDID, THINX_API_KEY, CLEANSESSION)
 
+    -- default MQTT QoS can lose messages
     MQTT_QOS = 0
     MQTT_RETAIN = false
 
+    -- LWT has default QoS but is retained
     MQTT_LWT_QOS = 0
     MQTT_LWT_RETAIN = true
     mqtt_client:lwt("/lwt", '{"connected":false', MQTT_LWT_QOS, MQTT_LWT_RETAIN)
 
+    -- device channel has QoS 2 and msut keep retained messages until device gets reconnected
     MQTT_DEVICE_QOS = 2 -- do not loose anything, require confirmation... (may not be supported)
 
+    -- subscribe to device channel and publish to status channel
     mqtt_client:on("connect", function(client)
         print ("m:connect-01, subscribing to device topic, publishing registration status...")
         mqtt_client:subscribe("/device/"..THINX_UDID, MQTT_DEVICE_QOS, function(client) print("m:subscribe01 success") end)
         mqtt_client:publish("/device/"..THINX_UDID.."/status", registration_json_body(), MQTT_QOS, MQTT_RETAIN)
     end)
 
+
     mqtt_client:on("offline", function(client)
-        print ("m:offline, closing client?")
+        print ("m:offline!!!")
         --mqtt_client:close();
-        --do_mqtt();
     end)
 
     mqtt_client:on("message", function(client, topic, data)
@@ -265,7 +252,6 @@ function do_mqtt()
 end
 
 function process_mqtt(payload)
-  print(payload)
   process_mqtt_payload(payload)
 end
 
@@ -300,8 +286,24 @@ function process_mqtt_payload(payload_json)
 
 end
 
+-- update firmware and reboot
+function update_and_reboot(data)
+  if file.open("thinx.tmp", "w") then
+    print("THINX: installing new firmware...")
+    file.write(data)
+    file.close()
+    -- if success only
+    file.rename("thinx.lua", "thinx.bak")
+    file.rename("thinx.tmp", "thinx.lua")
+    print("THINX: rebooting...")
+    node.restart()
+  else
+    print("THINX: failed to open thinx.lua for writing!")
+  end
+end
+
 function thinx_device_mac()
-  return "VENDOR"..node.chipid()
+  return wifi.sta.getmac()
 end
 
 function thinx()
