@@ -1,12 +1,6 @@
 -- THiNX Example device application
 -- Requires following nodemcu modules: http,mqtt,net,cjson,wifi
 
--- Roadmap:
--- TEST: Perform update request and flash firmware over-the-air
--- FIX: Support MQTT
--- TODO: HTTPS proxy support
--- TODO: convert to LUA module
-
 dofile("config.lua") -- must contain 'ssid', 'password'
 
 mqtt_client = null
@@ -181,10 +175,12 @@ end
 
 -- update firmware and reboot
 function update_and_reboot(data)
-  if file.open("thinx.lua", "w") then
+  if file.open("thinx.tmp", "w") then
     print("THINX: installing new firmware...")
     file.write(data)
     file.close()
+    -- if success only
+    file.rename("thinx.tmp", "thinx.lua")
     print("THINX: rebooting...")
     node.restart()
   else
@@ -222,7 +218,7 @@ function do_mqtt()
     print("MQTT connection with "..THINX_UDID.." and "..THINX_API_KEY)
 
     mqtt_client = mqtt.Client(node.chipid(), KEEPALIVE, THINX_UDID, THINX_API_KEY)
-    mqtt_client:lwt("/lwt", "{ \"connected\":false }", 0, 0)
+    mqtt_client:lwt("/lwt", '{"connected":false', 0, 0)
 
     mqtt_client:on("connect", function(client)
         print ("m:connect01")
@@ -266,19 +262,19 @@ function process_mqtt_payload(payload_json)
 
   local payload = cjson.decode(payload_json)
 
-  print("Processing MQTT payload: " .. payload_json);
+  print("Processing MQTT payload: " .. payload_json)
 
   local msg = payload['message']
   if msg then
-    print("Incoming MQTT message: " .. msg);
+    print("Incoming MQTT message: " .. msg)
     return
   end
 
-  local file = payload['file'];
+  local file = payload['file']
   if file then
-    local filename = file['name'];
+    local filename = file['name']
     local data = file['data']; -- todo: decode
-    print("MQTT file transfer: " .. filename .. "(not implemented)");
+    print("MQTT file transfer: " .. filename .. "(not implemented)")
     return
   end
 
