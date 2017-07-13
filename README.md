@@ -4,19 +4,22 @@ THiNX ESP8266 Vanilla Firmware for NodeMCU (LUA)
 ### Prerequisites
 
 * [Free THiNX Account](https://rtm.thinx.cloud)
-* ESP8266-based microcontroller 
+* ESP8266-based microcontroller
 * NodeMCU firmware with following modules: `cjson, mqtt, net, wifi`
 * ESPlorer or any other compatible IDE
 
 ### Tools
 
-* [NodeMCU DevKit](http://nodemcu.com/index_en.html)
+* [NodeMCU Firmware Builder](https://nodemcu-build.com) - customize your NodeMCU LUA firmware
 
-* [NodeMCU Firmware Builder](https://nodemcu-build.com)
+* [ESPTool](https://github.com/espressif/esptool) - upload your firmware, erase flash, de-brick
 
-* [ESPlorer](https://github.com/4refr0nt/ESPlorer)
+* [ESPlorer](https://github.com/4refr0nt/ESPlorer) - edit/upload your LUA code to device
 
-* [ESPTool](https://github.com/espressif/esptool)
+* [MQTT.fx](http://www.mqttfx.org) - subscribe/post to the message queue
+
+* [NodeMCU DevKit](http://nodemcu.com/index_en.html) - explore original devkit
+
 
 ### How to
 
