@@ -1,11 +1,21 @@
 -- THiNX Example device application
 -- Requires following nodemcu modules: http,mqtt,net,cjson,wifi
 
-print ("* THiNX-Client v0.2")
+--- TESTED-WITH:
+-- NodeMCU custom build by frightanic.com
+--	branch: master
+--	commit: b96e31477ca1e207aa1c0cdc334539b1f7d3a7f0
+--	SSL: false
+--	modules: adc,bit,cjson,coap,enduser_setup,file,gpio,http,i2c,mqtt,net,node,ow,pwm,sntp,spi,struct,tmr,uart,websocket,wifi
+-- build 	built on: 2017-02-10 21:52
+-- powered by Lua 5.1.4 on SDK 2.0.0(656edbf)
+
+print ("*THiNX:Client v0.2")
 
 dofile("config.lua") -- must contain 'ssid', 'password'
 
 mqtt_client = null
+mqtt_connected = false
 
 function registration_json_body()
   return '{"registration": {"mac": "'..thinx_device_mac()..'", "firmware": "'..THINX_FIRMWARE_VERSION..'", "commit": "' .. THINX_COMMIT_ID .. '", "version": "'..THINX_FIRMWARE_VERSION_SHORT..'", "checksum": "' .. THINX_COMMIT_ID .. '", "alias": "' .. THINX_DEVICE_ALIAS .. '", "udid" :"' ..THINX_UDID..'", "owner" : "'..THINX_DEVICE_OWNER..'", "platform":"nodemcu" }}'
@@ -201,7 +211,9 @@ function do_mqtt()
 
     print("* THiNX: Initializing MQTT client "..THINX_UDID.." / "..THINX_API_KEY)
 
-    mqtt_client = mqtt.Client(node.chipid(), KEEPALIVE, THINX_UDID, THINX_API_KEY, CLEANSESSION)
+    if mqtt_client == null then
+      mqtt_client = mqtt.Client(node.chipid(), KEEPALIVE, THINX_UDID, THINX_API_KEY, CLEANSESSION)
+    end
 
     -- default MQTT QoS can lose messages
     MQTT_QOS = 0
@@ -217,17 +229,19 @@ function do_mqtt()
 
     -- subscribe to device channel and publish to status channel
     mqtt_client:on("connect", function(client)
+        mqtt_connected = true
         print ("* THiNX: m:connect-01, subscribing to device topic, publishing registration status...")
         mqtt_client:subscribe("/device/"..THINX_UDID, MQTT_DEVICE_QOS, function(client) print("* THiNX: m:subscribe01 success") end)
         mqtt_client:publish("/device/".. THINX_UDID .."/status", registration_json_body(), MQTT_QOS, MQTT_RETAIN)
-    end)
+      end)
 
 
     mqtt_client:on("offline", function(client)
         print ("* THiNX: m:offline!!!")
+        mqtt_connected = false
         --mqtt_client:close()
         -- TODO: attempt reconnect after a while; do not use autoreconnect!
-    end)
+      end)
 
     mqtt_client:on("message", function(client, topic, data)
       print("* THiNX: m:message")
@@ -236,11 +250,12 @@ function do_mqtt()
           print("* THiNX: message: " .. data)
           process_mqtt(data)
         end
-    end)
+      end)
 
     print("* THiNX: Connecting to MQTT to " .. THINX_MQTT_URL .. "...")
 
-    mqtt_client:connect(THINX_MQTT_URL, THINX_MQTT_PORT, KEEPALIVE, THINX_UDID, THINX_API_KEY,
+    if mqtt_connected == false then
+      mqtt_client:connect(THINX_MQTT_URL, THINX_MQTT_PORT, KEEPALIVE, THINX_UDID, THINX_API_KEY,
         function(client)
             print ("* THiNX: m:connect-02, subscribing to device topic, publishing registration status...")
             mqtt_client:subscribe("/device/"..THINX_UDID, 0, function(client) print("* THiNX: m:subscribe02 success") end)
@@ -249,6 +264,7 @@ function do_mqtt()
         function(client, reason)
             print("* THiNX: failed reason: "..reason)
         end)
+    end
 
 end
 
@@ -259,16 +275,14 @@ end
 function process_mqtt_payload(payload_json)
   local ok, payload = pcall(cjson.decode, payload_json)
   if ok then
-      local upd = payload['update']
-    if upd then
+    local upd = payload['update']
+    if upd ~= nil then
       print("* THiNX: Update payload: " ..cjson.encode(upd))
       update_and_reboot(payload)
     end
-
     local msg = payload['message']
-    if msg then
+    if msg ~= nil then
       print("* THiNX: Incoming MQTT message: " .. msg)
-      return
     end
   else
       print("* THiNX: Processing MQTT payload failed: " .. payload_json)
@@ -314,11 +328,11 @@ end
 function update_and_reboot(payload)
 
   -- update variants
-  local files = upd['files']
-  local ott = upd['ott']
-  local url = upd['url']
-  local type = upd['type']
-  local name = "thinx.lua"
+  local files = payload['files']
+  local ott   = payload['ott']
+  local url   = payload['url']
+  local type  = payload['type']
+  local name  = "thinx.lua"
 
   -- as a default for NodeMCU, files are updated instead of whole firmware
   if type ~= nil then
