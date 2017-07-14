@@ -214,8 +214,13 @@ function do_mqtt()
 
     restore_device_info()
 
+    if THINX_API_KEY == nil then
+        print("* THiNX: MQTT init failed...")
+        return;
+    end
+
     KEEPALIVE = 120
-    CLEANSESSION = false -- keep retained messages
+    CLEANSESSION = false -- set falst to keep retained messages
 
     print("* THiNX: Initializing MQTT client "..THINX_UDID.." / "..THINX_API_KEY)
 
@@ -237,8 +242,8 @@ function do_mqtt()
     mqtt_client:on("connect", function(client)
         mqtt_connected = true
         print ("* THiNX: m:connect-01, subscribing to device topic, publishing registration status...")
-        mqtt_client:subscribe(mqtt_device_channel(), MQTT_DEVICE_QOS, function(client) print("* THiNX: Subscribed to device channel (1).") end)
-        mqtt_client:publish(mqtt_status_channel(), registration_json_body(), MQTT_QOS, MQTT_RETAIN)
+        client:subscribe(mqtt_device_channel(), MQTT_DEVICE_QOS, function(client) print("* THiNX: Subscribed to device channel (1).") end)
+        client:publish(mqtt_status_channel(), registration_json_body(), MQTT_QOS, MQTT_RETAIN)
       end)
 
 
@@ -256,16 +261,17 @@ function do_mqtt()
       end
     end)
 
-    print("* THiNX: Connecting to MQTT to " .. THINX_MQTT_URL .. "...")
-
     if mqtt_connected == false then
+      print("* THiNX: Connecting MQTT to " .. THINX_MQTT_URL .. "...")
       mqtt_client:connect(THINX_MQTT_URL, THINX_MQTT_PORT, KEEPALIVE, THINX_UDID, THINX_API_KEY,
         function(client)
-            print ("* THiNX: m:connect-02, subscribing to device topic, publishing registration status...")
-            client:subscribe(mqtt_device_channel(), MQTT_DEVICE_QOS, function(client) print("* THiNX: Subscribed to device channel (2).") end)
-            client:publish(mqtt_status_channel(), registration_json_body(), MQTT_QOS, MQTT_RETAIN)
+          mqtt_connected = true
+          print ("* THiNX: m:connect-02, subscribing to device topic, publishing registration status...")
+          client:subscribe(mqtt_device_channel(), MQTT_DEVICE_QOS, function(client) print("* THiNX: Subscribed to device channel (2).") end)
+          client:publish(mqtt_status_channel(), registration_json_body(), MQTT_QOS, MQTT_RETAIN)
         end,
         function(client, reason)
+          mqtt_connected = false
             print("* THiNX: reconnect failed, reason: "..reason)
         end)
     end
