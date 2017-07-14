@@ -205,11 +205,11 @@ function do_mqtt()
 
     -- default MQTT QoS can lose messages
     MQTT_QOS = 0
-    MQTT_RETAIN = false
+    MQTT_RETAIN = 1
 
     -- LWT has default QoS but is retained
     MQTT_LWT_QOS = 0
-    MQTT_LWT_RETAIN = true
+    MQTT_LWT_RETAIN = 1
     mqtt_client:lwt("/lwt", '{"connected":false', MQTT_LWT_QOS, MQTT_LWT_RETAIN)
 
     -- device channel has QoS 2 and msut keep retained messages until device gets reconnected
@@ -219,7 +219,7 @@ function do_mqtt()
     mqtt_client:on("connect", function(client)
         print ("* THiNX: m:connect-01, subscribing to device topic, publishing registration status...")
         mqtt_client:subscribe("/device/"..THINX_UDID, MQTT_DEVICE_QOS, function(client) print("* THiNX: m:subscribe01 success") end)
-        mqtt_client:publish("/device/"..THINX_UDID.."/status", registration_json_body(), MQTT_QOS, MQTT_RETAIN)
+        mqtt_client:publish("/device/".. THINX_UDID .."/status", registration_json_body(), MQTT_QOS, MQTT_RETAIN)
     end)
 
 
@@ -244,7 +244,7 @@ function do_mqtt()
         function(client)
             print ("* THiNX: m:connect-02, subscribing to device topic, publishing registration status...")
             mqtt_client:subscribe("/device/"..THINX_UDID, 0, function(client) print("* THiNX: m:subscribe02 success") end)
-            mqtt_client:publish("/device/"..THINX_UDID.."/status", '{ "status" : "OK", "success" : true }', 0, 0)
+            mqtt_client:publish("/device/"..THINX_UDID.."/status", '{ "status" : "OK", "success" : true }', MQTT_QOS, MQTT_RETAIN)
         end,
         function(client, reason)
             print("* THiNX: failed reason: "..reason)
@@ -328,55 +328,43 @@ function update_and_reboot(payload)
   if files then
     file.rename("thinx.lua", "thinx.bak") -- backup
     local success = false
-    if files then
       for file in files do
         local name = file['name']
         local data = file['data']
-        local data = file['url']
-        if name and data then
+        local url = file['url']
+        if (name and data) then
           success = update_file(name, data)
-        elseif name and url then
+        elseif (name and url) then
           update_from_url(name, url)
-          print("* THiNX: rebooting...")
-          node.restart()
-          return
+          success = true
         else
           print("* THiNX: MQTT Update payload has invalid file descriptors.")
         end
       end
-      local commit = upd['commit']
-      thinx_update(checksum, commit)
-    else
-      print("* THiNX: MQTT Update payload is missing file descriptors.")
-    end
+  else
+    print("* THiNX: MQTT Update payload is missing file descriptors.")
+  end
 
-  else if ott then
-
+  if ott then
     if type == "file" then
       url = 'http://' .. THINX_CLOUD_URL .. ':7442/device/firmware?ott=' .. ott
       print("* THiNX: Updating " .. name .. " from " .. url)
       update_from_url(name, url)
-      print("* THiNX: rebooting...")
-      node.restart()
-      return
-
+      success = true
     else
       print("* THiNX: Whole firmware update will be supported in future.")
     end
+  end
 
-  else if url then
-
+  if url then
     if type == "file" then
       print("* THiNX: Updating " .. name .. " from URL " .. url)
       update_from_url(name, url)
       print("* THiNX: rebooting...")
-      node.restart()
-      return
-
+      success = true
     else
       print("Whole firmware update will be supported in future.")
     end
-
   end
 
   if success then
