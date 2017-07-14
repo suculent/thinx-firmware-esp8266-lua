@@ -18,7 +18,7 @@ mqtt_client = null
 mqtt_connected = false
 
 function registration_json_body()
-  return '{"registration": {"mac": "'..thinx_device_mac()..'", "firmware": "'..THINX_FIRMWARE_VERSION..'", "commit": "' .. THINX_COMMIT_ID .. '", "version": "'..THINX_FIRMWARE_VERSION_SHORT..'", "checksum": "' .. THINX_COMMIT_ID .. '", "alias": "' .. THINX_DEVICE_ALIAS .. '", "udid" :"' ..THINX_UDID..'", "owner" : "'..THINX_DEVICE_OWNER..'", "platform":"nodemcu" }}'
+  return '{"registration": {"mac": "'..thinx_device_mac()..'", "firmware": "'..THINX_FIRMWARE_VERSION..'", "commit": "' .. THINX_COMMIT_ID .. '", "version": "'..THINX_FIRMWARE_VERSION_SHORT..'", "checksum": "' .. THINX_COMMIT_ID .. '", "alias": "' .. THINX_DEVICE_ALIAS .. '", "udid" :"' ..THINX_UDID..'", "owner" : "'..THINX_DEVICE_OWNER..'", "platform" : "nodemcu" }}'
 end
 
 function connect(ssid, password)
@@ -229,8 +229,8 @@ function do_mqtt()
     mqtt_client:on("connect", function(client)
         mqtt_connected = true
         print ("* THiNX: m:connect-01, subscribing to device topic, publishing registration status...")
-        mqtt_client:subscribe("/device/"..THINX_UDID, MQTT_DEVICE_QOS, function(client) print("* THiNX: m:subscribe01 success") end)
-        mqtt_client:publish("/device/".. THINX_UDID .."/status", registration_json_body(), MQTT_QOS, MQTT_RETAIN)
+        mqtt_client:subscribe("/"..THINX_DEVICE_OWNER.."/"..THINX_UDID, MQTT_DEVICE_QOS, function(client) print("* THiNX: m:subscribe01 success") end)
+        mqtt_client:publish("/"..THINX_DEVICE_OWNER.."/".. THINX_UDID .."/status", registration_json_body(), MQTT_QOS, MQTT_RETAIN)
       end)
 
 
@@ -254,8 +254,8 @@ function do_mqtt()
       mqtt_client:connect(THINX_MQTT_URL, THINX_MQTT_PORT, KEEPALIVE, THINX_UDID, THINX_API_KEY,
         function(client)
             print ("* THiNX: m:connect-02, subscribing to device topic, publishing registration status...")
-            mqtt_client:subscribe("/device/"..THINX_UDID, 0, function(client) print("* THiNX: m:subscribe02 success") end)
-            mqtt_client:publish("/device/"..THINX_UDID.."/status", '{ "status" : "OK", "success" : true }', MQTT_QOS, MQTT_RETAIN)
+            mqtt_client:subscribe("/"..THINX_DEVICE_OWNER.."/"..THINX_UDID, 0, function(client) print("* THiNX: m:subscribe02 success") end)
+            mqtt_client:publish("/"..THINX_DEVICE_OWNER.."/"..THINX_UDID.."/status", '{ "status" : "OK", "success" : true }', MQTT_QOS, MQTT_RETAIN)
         end,
         function(client, reason)
             print("* THiNX: failed reason: "..reason)
