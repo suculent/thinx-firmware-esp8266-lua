@@ -28,5 +28,5 @@ THINX_PROXY = "thinx.local"
 
 -- BEGINNING OF USER FILE
 
-wifi_ssid='IoT-WLAN'
-wifi_password='mytoudelame'
+wifi_ssid='VINARNA'
+wifi_password='najednicku'
