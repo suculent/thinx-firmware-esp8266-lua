@@ -1,6 +1,8 @@
 -- THiNX Example device application
 -- Requires following nodemcu modules: http,mqtt,net,cjson,wifi
 
+print ("* THiNX-Client v0.2")
+
 dofile("config.lua") -- must contain 'ssid', 'password'
 
 mqtt_client = null
@@ -15,10 +17,10 @@ function connect(ssid, password)
   wifi.sta.connect()
   tmr.alarm(1, 5000, 1, function()
     if wifi.sta.getip() == nil then
-      print("Connecting " .. ssid .. "...")
+      print("* THiNX: Connecting " .. ssid .. "...")
     else
       tmr.stop(1)
-      print("Connected to " .. ssid .. ", IP is "..wifi.sta.getip())
+      print("* THiNX: Connected to " .. ssid .. ", IP is "..wifi.sta.getip())
       thinx_register()
       if THINX_UDID ~= "" then
         do_mqtt()
@@ -30,20 +32,20 @@ end
 -- devuce registration request
 function thinx_register()
   restore_device_info()
-  url = 'http://thinx.cloud:7442/device/register'
+  url = 'http://' .. THINX_CLOUD_URL .. ':7442/device/register'
   headers = 'Authentication:' .. THINX_API_KEY .. '\r\n' ..
             'Accept: application/json\r\n' ..
             'Origin: device\r\n' ..
             'Content-Type: application/json\r\n' ..
             'User-Agent: THiNX-Client\r\n'
   data = registration_json_body()
-  print("Registration request: " .. data)
+  print("* THiNX: Registration request: " .. data)
   http.post(url, headers, data,
     function(code, data)
       if (code < 0) then
-        print("HTTP request failed")
+        print("* THiNX: HTTP request failed")
       else
-        print(code, data)
+        print("* THiNX: ", code, data)
         if code == 200 then
           process_thinx_response(data)
       end
@@ -53,7 +55,7 @@ end
 
 -- firmware update request
 function thinx_update(commit, checksum)
-  url = 'http://thinx.cloud:7442/device/firmware'
+  url = 'http://' .. THINX_CLOUD_URL .. ':7442/device/firmware'
   headers = 'Authentication: ' .. THINX_API_KEY .. '\r\n' ..
             'Accept: */*\r\n' ..
             'Origin: device\r\n' ..
@@ -61,16 +63,16 @@ function thinx_update(commit, checksum)
             'User-Agent: THiNX-Client\r\n'
 
   data = registration_json_body()
-  print("Updaterequest: " .. data)
+  print("* THiNX: Update Request: " .. data)
   http.post(url, headers, body,
     function(code, data)
       if (code < 0) then
-        print("HTTP request failed")
+        print("* THiNX: HTTP request failed")
       else
-        print(code, data)
+        print("* THiNX: ", code, data)
         if code == 200 then
-          print("THINX: Attempting to install update...");
-          print("THINX: TODO: Calculate data checksum...");
+          print("* THiNX: Attempting to install update with response: "+..data);
+          print("* THiNX: TODO: Calculate data checksum...");
           update_and_reboot(data)
       end
     end
@@ -78,39 +80,36 @@ function thinx_update(commit, checksum)
 end
 
 -- process incoming JSON response (both MQTT/HTTP) for register/force-update/update and forward others to client app)
-function process_thinx_response(response_json)
-
-  if response_json == "old_protocol" then
-    print("This THiNX Library is deprecated.")
-    return
-  end
-
-  -- decode should use try-catch or other means of validation
-  local response = cjson.decode(response_json)
-
-  local reg = response['registration']
-  if reg then
-    print(cjson.encode(reg))
-    THINX_DEVICE_ALIAS = reg['alias']
-    THINX_DEVICE_OWNER = reg['owner']
-    if reg['apikey'] ~= nil then
-      THINX_API_KEY = reg['apikey']
+function process_thinx_response(response_json)  
+  
+  local ok, response = pcall(cjson.decode, response_json)
+  if ok then      
+    local reg = response['registration']
+    if reg then
+      print("* THiNX: ", cjson.encode(reg))
+      THINX_DEVICE_ALIAS = reg['alias']
+      THINX_DEVICE_OWNER = reg['owner']
+      if reg['apikey'] ~= nil then
+        THINX_API_KEY = reg['apikey']
+      end
+      THINX_UDID = reg['udid']
+      save_device_info()
     end
-    THINX_UDID = reg['udid']
-    save_device_info()
-  end
 
-  local upd = response['update']
-  if upd then
-    print(cjson.encode(reg))
-    print("TODO: Fetch data, write to temp file and swap with init.lua")
-    local checksum = upd['checksum'];
-    local commit = upd['commit'];
-    thinx_update(checksum, commit)
+    local upd = response['update']
+    if upd then
+      print("* THiNX: ", cjson.encode(reg))
+      print("* THiNX: TODO: Define UPDATE payload (instead of checksum and commit, see MQTT vs. HTTP...)")
+      local checksum = upd['checksum'];
+      local commit = upd['commit'];
+      thinx_update(checksum, commit)
+    end
+  else
+    print("* THiNX: JSON could not be parsed:" .. response_json)
   end
 
   if THINX_UDID == "" then
-    print("UDID unknown, MQTT not available.")
+    print("* THiNX: MQTT cannot be used until UDID will be assigned.")
   else
     do_mqtt()
   end
@@ -118,7 +117,7 @@ end
 
 -- provides only current status as JSON so it can be loaded/saved independently
 function get_device_info()
-
+  
   device_info = {}
 
   if THINX_DEVICE_ALIAS ~= "" then
@@ -140,6 +139,7 @@ function get_device_info()
   device_info['platform'] = "nodemcu"
 
   return device_info
+
 end
 
 -- apply given device info to current runtime environment
@@ -167,7 +167,7 @@ function save_device_info()
     file.write(info .. '\n')
     file.close()
   else
-    print("THINX: failed to open config file for writing")
+    print("* THiNX: failed to open config file for writing")
   end
 end
 
@@ -176,21 +176,21 @@ function restore_device_info()
   if file.open("thinx.cfg", "r") then
     data = file.read('\n')
     file.close()
-    ok, info = pcall(cjson.decode, data)
+    local ok, info = pcall(cjson.decode, data)
     if ok then
         apply_device_info(info)
     else
-        print("Custom configuration could not be parsed." .. data)
+        print("* THiNX: Custom configuration could not be parsed." .. data)
     end
   else
-    print("No custom configuration stored. Using build-time constants.")
+    print("* THiNX: No custom configuration stored. Using build-time constants.")
   end
 end
 
 function do_mqtt()
 
     if THINX_API_KEY == nil then
-        print("Reloading vars...")
+        print("* THiNX: Reloading vars...")
         dofile("config.lua") -- max require configuration reload..
     end
 
@@ -199,7 +199,7 @@ function do_mqtt()
     KEEPALIVE = 120
     CLEANSESSION = false -- keep retained messages
 
-    print("Initializing MQTT client "..THINX_UDID.." / "..THINX_API_KEY)
+    print("* THiNX: Initializing MQTT client "..THINX_UDID.." / "..THINX_API_KEY)
 
     mqtt_client = mqtt.Client(node.chipid(), KEEPALIVE, THINX_UDID, THINX_API_KEY, CLEANSESSION)
 
@@ -217,36 +217,36 @@ function do_mqtt()
 
     -- subscribe to device channel and publish to status channel
     mqtt_client:on("connect", function(client)
-        print ("m:connect-01, subscribing to device topic, publishing registration status...")
-        mqtt_client:subscribe("/device/"..THINX_UDID, MQTT_DEVICE_QOS, function(client) print("m:subscribe01 success") end)
+        print ("* THiNX: m:connect-01, subscribing to device topic, publishing registration status...")
+        mqtt_client:subscribe("/device/"..THINX_UDID, MQTT_DEVICE_QOS, function(client) print("* THiNX: m:subscribe01 success") end)
         mqtt_client:publish("/device/"..THINX_UDID.."/status", registration_json_body(), MQTT_QOS, MQTT_RETAIN)
     end)
 
 
     mqtt_client:on("offline", function(client)
-        print ("m:offline!!!")
+        print ("* THiNX: m:offline!!!")
         --mqtt_client:close();
     end)
 
     mqtt_client:on("message", function(client, topic, data)
-      print("m:message")
-        print("topic: " .. topic)
+      print("* THiNX: m:message")
+        print("* THiNX: topic: " .. topic)
         if data ~= nil then
-          print("message: " .. data)
+          print("* THiNX: message: " .. data)
           process_mqtt(data)
         end
     end)
 
-    print("Connecting to MQTT to " .. THINX_MQTT_URL .. "...")
+    print("* THiNX: Connecting to MQTT to " .. THINX_MQTT_URL .. "...")
 
     mqtt_client:connect(THINX_MQTT_URL, THINX_MQTT_PORT, KEEPALIVE, THINX_UDID, THINX_API_KEY,
         function(client)
-            print ("m:connect-02, subscribing to device topic, publishing registration status...")
-            mqtt_client:subscribe("/device/"..THINX_UDID, 0, function(client) print("m:subscribe02 success") end)
+            print ("* THiNX: m:connect-02, subscribing to device topic, publishing registration status...")
+            mqtt_client:subscribe("/device/"..THINX_UDID, 0, function(client) print("* THiNX: m:subscribe02 success") end)
             mqtt_client:publish("/device/"..THINX_UDID.."/status", '{ "status" : "OK", "success" : true }', 0, 0)
         end,
         function(client, reason)
-            print("failed reason: "..reason)
+            print("* THiNX: failed reason: "..reason)
         end)
 
 end
@@ -256,32 +256,33 @@ function process_mqtt(payload)
 end
 
 function process_mqtt_payload(payload_json)
-  local payload = cjson.decode(payload_json)
-  print("Processing MQTT payload: " .. payload_json)
+  local ok, payload = pcall(cjson.decode, payload_json)
+  if ok then
+      local upd = payload['update']
+    if upd then
+      print("* THiNX: Update payload: " ..cjson.encode(upd))    
+      update_and_reboot(payload)
+    end
 
-  local upd = payload['update']
-  if upd then
-    print("Update payload: " ..cjson.encode(upd))    
-    update_and_reboot(payload)
+    local msg = payload['message']
+    if msg then
+      print("* THiNX: Incoming MQTT message: " .. msg)
+      return
+    end 
+  else
+      print("* THiNX: Processing MQTT payload failed: " .. payload_json)
   end
-
-  local msg = payload['message']
-  if msg then
-    print("Incoming MQTT message: " .. msg)
-    return
-  end 
-
 end
 
 -- update specific filename on filesystem with data, returns success/false
 function update_file(name, data)
   if file.open(name, "w") then
-    print("THINX: Uploading new file: "..name)
+    print("* THiNX: Uploading new file: "..name)
     file.write(data)
     file.close()        
     return true
   else
-    print("THINX: failed to open " .. name .. " for writing!")
+    print("* THiNX: failed to open " .. name .. " for writing!")
     return false
   end
 end
@@ -290,19 +291,19 @@ end
 function update_from_url(name, url)
   http.get(url, nil, function(code, data)
     if (code < 0) then
-      print("HTTP Update request failed")
+      print("* THiNX: HTTP Update request failed")
     else
       if code == 200 then
         local success = update_file(name, data)
         if success then
-          print("THINX: Updated from URL, rebooting...")
+          print("* THiNX: Updated from URL, rebooting...")
           node.restart()
         else
           file.rename("thinx.bak", "thinx.lua")
-          print("THINX: Update from URL failed...")
+          print("* THiNX: Update from URL failed...")
         end 
       else
-        print("HTTP Update request failed with status: "..code)
+        print("* THiNX: HTTP Update request failed with status: "..code)
       end
     end
   end)
@@ -311,8 +312,18 @@ end
 -- the update payload may contain files, URL or OTT  
 function update_and_reboot(payload)  
 
-  -- update files
+  -- update variants
   local files = upd['files']
+  local ott = upd['ott']
+  local url = upd['url']
+  local type = upd['type']
+  local name = "thinx.lua"
+
+  -- as a default for NodeMCU, files are updated instead of whole firmware
+  if type ~= nil then
+    type = "file"
+  end
+
   if files then
     file.rename("thinx.lua", "thinx.bak") -- backup
     local success = false
@@ -325,24 +336,54 @@ function update_and_reboot(payload)
           success = update_file(name, data)
         elseif name && url then
           update_from_url(name, url)
+          print("* THiNX: rebooting...")
+          node.restart()
           return
         else
-          print("MQTT Update payload has invalid file descriptors.")
+          print("* THiNX: MQTT Update payload has invalid file descriptors.")
         end
       end
       local commit = upd['commit']
       thinx_update(checksum, commit)
     else
-      print("MQTT Update payload is missing file descriptors.")
-    end    
+      print("* THiNX: MQTT Update payload is missing file descriptors.")
+    end
+
+  else if ott then 
+
+    if type == "file" then      
+      url = 'http://' .. THINX_CLOUD_URL .. ':7442/device/firmware?ott=' .. ott
+      print("* THiNX: Updating " .. name .. " from " .. url)
+      update_from_url(name, url)
+      print("* THiNX: rebooting...")
+      node.restart()
+      return
+
+    else
+      print("* THiNX: Whole firmware update will be supported in future.")
+    end
+
+  else if url then
+
+    if type == "file" then
+      print("* THiNX: Updating " .. name .. " from URL " .. url)
+      update_from_url(name, url)
+      print("* THiNX: rebooting...")
+      node.restart()
+      return
+
+    else
+      print("Whole firmware update will be supported in future.")
+    end
+
   end
 
   if success then
-    print("THINX: rebooting...")
+    print("* THiNX: rebooting...")
     node.restart()
   else
     file.rename("thinx.bak", "thinx.lua")
-    print("THINX: update failed...")
+    print("* THiNX: update failed...")
   end  
 
 end

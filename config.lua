@@ -8,9 +8,9 @@ THINX_DEVICE_ALIAS="nodemcu-lua-test"
 majorVer, minorVer, devVer, chipid, flashid, flashsize, flashmode, flashspeed = node.info()
 
 -- build-time constants
-THINX_COMMIT_ID = "27d62e2edf4a209d7592e4c95b7709b0035f2a24"
-THINX_FIRMWARE_VERSION_SHORT = majorVer.."."..minorVer.."."..devVer
-THINX_FIRMWARE_VERSION = "nodemcu-esp8266-lua-"..THINX_FIRMWARE_VERSION_SHORT
+THINX_COMMIT_ID = "fb5e1c8755d12f3d32e86f1d24f68294952077b1"
+THINX_FIRMWARE_VERSION_SHORT = "1.0.0" -- majorVer.."."..minorVer.."."..devVer
+THINX_FIRMWARE_VERSION = "thinx-esp8266-lua-"..THINX_FIRMWARE_VERSION_SHORT
 THINX_UDID = "" -- each build is specific only for given udid to prevent data leak
 
 
@@ -28,5 +28,5 @@ THINX_PROXY = "thinx.local"
 
 -- BEGINNING OF USER FILE
 
-wifi_ssid='HAVANA'
-wifi_password='1234567890'
+wifi_ssid='IoT-WLAN'
+wifi_password='mytoudelame'
