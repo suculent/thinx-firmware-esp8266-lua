@@ -197,6 +197,14 @@ function restore_device_info()
   end
 end
 
+function mqtt_device_channel()
+  return "/"..THINX_DEVICE_OWNER.."/".. THINX_UDID
+end
+
+function mqtt_status_channel()
+  return mqtt_device_channel() .. "/status"
+end
+
 function do_mqtt()
 
     if THINX_API_KEY == nil then
@@ -213,14 +221,14 @@ function do_mqtt()
 
     mqtt_client = mqtt.Client(node.chipid(), KEEPALIVE, THINX_UDID, THINX_API_KEY, CLEANSESSION)
 
-    -- default MQTT QoS can lose messages
-    MQTT_QOS = 0
-    MQTT_RETAIN = 1
-
     -- LWT has default QoS but is retained
     MQTT_LWT_QOS = 0
     MQTT_LWT_RETAIN = 1
-    mqtt_client:lwt("/lwt", '{"connected":false', MQTT_LWT_QOS, MQTT_LWT_RETAIN)
+    mqtt_client:lwt(mqtt_status_channel(), '{ "connected" : false }', MQTT_LWT_QOS, MQTT_LWT_RETAIN)
+
+    -- default MQTT QoS can lose messages
+    MQTT_QOS = 0
+    MQTT_RETAIN = 1
 
     -- device channel has QoS 2 and msut keep retained messages until device gets reconnected
     MQTT_DEVICE_QOS = 2 -- do not loose anything, require confirmation... (may not be supported)
@@ -229,8 +237,8 @@ function do_mqtt()
     mqtt_client:on("connect", function(client)
         mqtt_connected = true
         print ("* THiNX: m:connect-01, subscribing to device topic, publishing registration status...")
-        mqtt_client:subscribe("/"..THINX_DEVICE_OWNER.."/"..THINX_UDID, MQTT_DEVICE_QOS, function(client) print("* THiNX: m:subscribe01 success") end)
-        mqtt_client:publish("/"..THINX_DEVICE_OWNER.."/".. THINX_UDID .."/status", registration_json_body(), MQTT_QOS, MQTT_RETAIN)
+        mqtt_client:subscribe(mqtt_device_channel(), MQTT_DEVICE_QOS, function(client) print("* THiNX: Subscribed to device channel (1).") end)
+        mqtt_client:publish(mqtt_status_channel(), registration_json_body(), MQTT_QOS, MQTT_RETAIN)
       end)
 
 
@@ -254,11 +262,11 @@ function do_mqtt()
       mqtt_client:connect(THINX_MQTT_URL, THINX_MQTT_PORT, KEEPALIVE, THINX_UDID, THINX_API_KEY,
         function(client)
             print ("* THiNX: m:connect-02, subscribing to device topic, publishing registration status...")
-            mqtt_client:subscribe("/"..THINX_DEVICE_OWNER.."/"..THINX_UDID, 0, function(client) print("* THiNX: m:subscribe02 success") end)
-            mqtt_client:publish("/"..THINX_DEVICE_OWNER.."/"..THINX_UDID.."/status", '{ "status" : "OK", "success" : true }', MQTT_QOS, MQTT_RETAIN)
+            client:subscribe(mqtt_device_channel(), MQTT_DEVICE_QOS, function(client) print("* THiNX: Subscribed to device channel (2).") end)
+            client:publish(mqtt_status_channel(), registration_json_body(), MQTT_QOS, MQTT_RETAIN)
         end,
         function(client, reason)
-            print("* THiNX: failed reason: "..reason)
+            print("* THiNX: reconnect failed, reason: "..reason)
         end)
     end
 
