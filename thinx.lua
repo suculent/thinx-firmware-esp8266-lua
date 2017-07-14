@@ -256,50 +256,95 @@ function process_mqtt(payload)
 end
 
 function process_mqtt_payload(payload_json)
-
   local payload = cjson.decode(payload_json)
-
   print("Processing MQTT payload: " .. payload_json)
+
+  local upd = payload['update']
+  if upd then
+    print("Update payload: " ..cjson.encode(upd))    
+    update_and_reboot(payload)
+  end
 
   local msg = payload['message']
   if msg then
     print("Incoming MQTT message: " .. msg)
     return
-  end
-
-  local file = payload['file']
-  if file then
-    local filename = file['name']
-    local data = file['data']; -- todo: decode
-    print("MQTT file transfer: " .. filename .. "(not implemented)")
-    return
-  end
-
-  local upd = payload['update']
-  if upd then
-    print(cjson.encode(upd))
-    print("TODO: Fetch data, write to temp file and swap with init.lua, thinx.lua, config.lua etc...")
-    local checksum = upd['checksum']
-    local commit = upd['commit']
-    thinx_update(checksum, commit)
-  end
+  end 
 
 end
 
--- update firmware and reboot
-function update_and_reboot(data)
-  if file.open("thinx.tmp", "w") then
-    print("THINX: installing new firmware...")
+-- update specific filename on filesystem with data, returns success/false
+function update_file(name, data)
+  if file.open(name, "w") then
+    print("THINX: Uploading new file: "..name)
     file.write(data)
-    file.close()
-    -- if success only
-    file.rename("thinx.lua", "thinx.bak")
-    file.rename("thinx.tmp", "thinx.lua")
+    file.close()        
+    return true
+  else
+    print("THINX: failed to open " .. name .. " for writing!")
+    return false
+  end
+end
+
+-- update specific filename on filesystem with data from URL
+function update_from_url(name, url)
+  http.get(url, nil, function(code, data)
+    if (code < 0) then
+      print("HTTP Update request failed")
+    else
+      if code == 200 then
+        local success = update_file(name, data)
+        if success then
+          print("THINX: Updated from URL, rebooting...")
+          node.restart()
+        else
+          file.rename("thinx.bak", "thinx.lua")
+          print("THINX: Update from URL failed...")
+        end 
+      else
+        print("HTTP Update request failed with status: "..code)
+      end
+    end
+  end)
+end
+
+-- the update payload may contain files, URL or OTT  
+function update_and_reboot(payload)  
+
+  -- update files
+  local files = upd['files']
+  if files then
+    file.rename("thinx.lua", "thinx.bak") -- backup
+    local success = false
+    if files then
+      for file in files do
+        local name = file['name']
+        local data = file['data']
+        local data = file['url']
+        if name && data then
+          success = update_file(name, data)
+        elseif name && url then
+          update_from_url(name, url)
+          return
+        else
+          print("MQTT Update payload has invalid file descriptors.")
+        end
+      end
+      local commit = upd['commit']
+      thinx_update(checksum, commit)
+    else
+      print("MQTT Update payload is missing file descriptors.")
+    end    
+  end
+
+  if success then
     print("THINX: rebooting...")
     node.restart()
   else
-    print("THINX: failed to open thinx.lua for writing!")
-  end
+    file.rename("thinx.bak", "thinx.lua")
+    print("THINX: update failed...")
+  end  
+
 end
 
 function thinx_device_mac()
