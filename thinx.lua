@@ -10,7 +10,8 @@
 -- build 	built on: 2017-02-10 21:52
 -- powered by Lua 5.1.4 on SDK 2.0.0(656edbf)
 
-print ("*THiNX:Client v0.2")
+print("")
+print ("* THiNX:Client v0.2")
 
 dofile("config.lua") -- must contain 'ssid', 'password'
 
@@ -52,7 +53,7 @@ function thinx_register()
       if (code < 0) then
         print("* THiNX: HTTP request failed")
       else
-        print("* THiNX: HTTP response: ", code, data)
+        -- print("* THiNX: HTTP response: ", code, data)
         if code == 200 then
           process_thinx_response(data)
       end
@@ -220,7 +221,6 @@ function do_mqtt()
     CLEANSESSION = false -- set falst to keep retained messages
 
     print("* THiNX: Initializing MQTT client "..THINX_UDID.." / "..THINX_API_KEY)
-
     mqtt_client = mqtt.Client(node.chipid(), KEEPALIVE, THINX_UDID, THINX_API_KEY, CLEANSESSION)
 
     -- LWT has default QoS but is retained
@@ -259,7 +259,7 @@ function do_mqtt()
     end)
 
     if mqtt_connected == false then
-      print("* THiNX: Connecting MQTT to " .. THINX_MQTT_URL .. "...")
+      print("* THiNX: Re/connecting MQTT to " .. THINX_MQTT_URL .. "...")
       mqtt_client:connect(THINX_MQTT_URL, THINX_MQTT_PORT, KEEPALIVE, THINX_UDID, THINX_API_KEY,
         function(client)
           mqtt_connected = true
