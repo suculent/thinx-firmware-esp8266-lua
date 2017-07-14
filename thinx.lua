@@ -55,7 +55,7 @@ function thinx_register()
       if (code < 0) then
         print("* THiNX: HTTP request failed")
       else
-        print("* THiNX: ", code, data)
+        print("* THiNX: HTTP response: ", code, data)
         if code == 200 then
           process_thinx_response(data)
       end
@@ -79,7 +79,7 @@ function thinx_update(commit, checksum)
       if (code < 0) then
         print("* THiNX: HTTP request failed")
       else
-        print("* THiNX: ", code, data)
+        print("* THiNX: HTTP response: ", code, data)
         if code == 200 then
           print("* THiNX: Attempting to install update with response: " .. data)
           print("* THiNX: TODO: Calculate data checksum...")
@@ -211,9 +211,7 @@ function do_mqtt()
 
     print("* THiNX: Initializing MQTT client "..THINX_UDID.." / "..THINX_API_KEY)
 
-    if mqtt_client == null then
-      mqtt_client = mqtt.Client(node.chipid(), KEEPALIVE, THINX_UDID, THINX_API_KEY, CLEANSESSION)
-    end
+    mqtt_client = mqtt.Client(node.chipid(), KEEPALIVE, THINX_UDID, THINX_API_KEY, CLEANSESSION)
 
     -- default MQTT QoS can lose messages
     MQTT_QOS = 0
@@ -244,13 +242,11 @@ function do_mqtt()
       end)
 
     mqtt_client:on("message", function(client, topic, data)
-      print("* THiNX: m:message")
-        print("* THiNX: topic: " .. topic)
-        if data ~= nil then
-          print("* THiNX: message: " .. data)
-          process_mqtt(data)
-        end
-      end)
+      print("* THiNX: Message on topic: " .. topic)
+      if data ~= nil then
+        process_mqtt(data)
+      end
+    end)
 
     print("* THiNX: Connecting to MQTT to " .. THINX_MQTT_URL .. "...")
 
@@ -382,11 +378,11 @@ function update_and_reboot(payload)
   end
 
   if success then
-    print("* THiNX: rebooting...")
+    print("* THiNX: Update successful, rebooting...")
     node.restart()
   else
     file.rename("thinx.bak", "thinx.lua")
-    print("* THiNX: update failed...")
+    print("* THiNX: Update aborted.")
   end
 
 end
