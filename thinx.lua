@@ -32,9 +32,6 @@ function connect(ssid, password)
       tmr.stop(1)
       print("* THiNX: Connected to " .. ssid .. ", IP is "..wifi.sta.getip())
       thinx_register()
-      if THINX_UDID ~= "" then
-        do_mqtt()
-      end
     end
   end)
 end
