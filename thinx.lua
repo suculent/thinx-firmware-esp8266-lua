@@ -15,7 +15,7 @@
 --
 
 print("")
-print ("* THiNX:Client v1.9.29") -- needs firmware update to be 2.0
+print ("* THiNX:Client v0.9.26") -- compatible with API 1.9.29
 
 dofile("config.lua") -- must contain 'ssid', 'password'
 
