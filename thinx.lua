@@ -19,8 +19,11 @@ mqtt_client = null
 mqtt_connected = false
 
 function registration_json_body()
-  return '{"registration": {"mac": "'..thinx_device_mac()..'", "firmware": "'..THINX_FIRMWARE_VERSION..'", "commit": "' .. THINX_COMMIT_ID .. '", "version": "'..THINX_FIRMWARE_VERSION_SHORT..'", "checksum": "' .. THINX_COMMIT_ID .. '", "alias": "' .. THINX_DEVICE_ALIAS .. '", "udid" :"' ..THINX_UDID..'", "owner" : "'..THINX_DEVICE_OWNER..'", "platform" : "nodemcu" }}'
+  return '{"registration": {"mac": "'..thinx_device_mac()..'", "firmware": "'..THINX_FIRMWARE_VERSION..'", "commit": "' .. THINX_COMMIT_ID .. '", "version": "'..THINX_FIRMWARE_VERSION_SHORT..'", "checksum": "' .. THINX_COMMIT_ID .. '", "alias": "' .. THINX_ALIAS .. '", "udid" :"' ..THINX_UDID..'", "owner" : "'..THINX_OWNER..'", "platform" : "nodemcu" }}'
 end
+
+thx_connected_response = "{ \"status\" : \"connected\" }"
+thx_disconnected_response = "{ \"status\" : \"disconnected\" }"
 
 function connect(ssid, password)
   wifi.setmode(wifi.STATION)
@@ -95,8 +98,8 @@ function process_thinx_response(response_json)
     local reg = response['registration']
     if reg then
       print("* THiNX: ", cjson.encode(reg))
-      THINX_DEVICE_ALIAS = reg['alias']
-      THINX_DEVICE_OWNER = reg['owner']
+      THINX_ALIAS = reg['alias']
+      THINX_OWNER = reg['owner']
       if reg['apikey'] ~= nil then
         THINX_API_KEY = reg['apikey']
       end
@@ -128,12 +131,12 @@ function get_device_info()
 
   device_info = {}
 
-  if THINX_DEVICE_ALIAS ~= "" then
-    device_info['alias'] = THINX_DEVICE_ALIAS
+  if THINX_ALIAS ~= "" then
+    device_info['alias'] = THINX_ALIAS
   end
 
-  if THINX_DEVICE_OWNER ~= "" then
-    device_info['owner'] = THINX_DEVICE_OWNER
+  if THINX_OWNER ~= "" then
+    device_info['owner'] = THINX_OWNER
   end
 
   if THINX_API_KEY~= "" then
@@ -153,11 +156,11 @@ end
 -- apply given device info to current runtime environment
 function apply_device_info(info)
     if info['alias'] ~= nil then
-        THINX_DEVICE_ALIAS = info['alias']
+        THINX_ALIAS = info['alias']
     end
     if info['owner'] ~= nil then
         if info['owner'] ~= "" then
-            THINX_DEVICE_OWNER = info['owner']
+            THINX_OWNER = info['owner']
         end
     end
     if info['apikey'] ~= nil then
@@ -196,7 +199,7 @@ function restore_device_info()
 end
 
 function mqtt_device_channel()
-  return "/"..THINX_DEVICE_OWNER.."/".. THINX_UDID
+  return "/"..THINX_OWNER.."/".. THINX_UDID
 end
 
 function mqtt_status_channel()
@@ -226,7 +229,7 @@ function do_mqtt()
     -- LWT has default QoS but is retained
     MQTT_LWT_QOS = 0
     MQTT_LWT_RETAIN = 1
-    mqtt_client:lwt(mqtt_status_channel(), '{ "connected" : false }', MQTT_LWT_QOS, MQTT_LWT_RETAIN)
+    mqtt_client:lwt(mqtt_status_channel(), thx_disconnected_response, MQTT_LWT_QOS, MQTT_LWT_RETAIN)
 
     -- default MQTT QoS can lose messages
     MQTT_QOS = 0
@@ -239,8 +242,9 @@ function do_mqtt()
     mqtt_client:on("connect", function(client)
         mqtt_connected = true
         print ("* THiNX: m:connect-01, subscribing to device topic, publishing registration status...")
-        client:subscribe(mqtt_device_channel(), MQTT_DEVICE_QOS, function(client) print("* THiNX: Subscribed to device channel (1).") end)
-        client:publish(mqtt_status_channel(), registration_json_body(), MQTT_QOS, MQTT_RETAIN)
+        client:subscribe(mqtt_device_channel(), MQTT_DEVICE_QOS, function(client) print("* THiNX: Subscribed to device channel (1).") end)        
+        client:publish(mqtt_status_channel(), registration_json_body(), MQTT_QOS, 0)
+        client:publish(mqtt_status_channel(), thx_connected_response, MQTT_QOS, MQTT_RETAIN)
       end)
 
 
@@ -265,6 +269,7 @@ function do_mqtt()
           mqtt_connected = true
           print ("* THiNX: m:connect-02, subscribing to device topic, publishing registration status...")
           client:subscribe(mqtt_device_channel(), MQTT_DEVICE_QOS, function(client) print("* THiNX: Subscribed to device channel (2).") end)
+          client:publish(mqtt_status_channel(), thx_connected_response, MQTT_QOS, MQTT_RETAIN)
           client:publish(mqtt_status_channel(), registration_json_body(), MQTT_QOS, MQTT_RETAIN)
         end,
         function(client, reason)
