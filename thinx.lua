@@ -17,9 +17,9 @@
 print("")
 print ("* THiNX:Client v0.9.26") -- compatible with API 1.9.29
 
-dofile("config.lua") -- must contain 'ssid', 'password'
+dofile("config.lua") -- must contain 'ssid', 'password' because this firmware does not currently support captive portal
 
-mqtt_client = null
+mqtt_client = nil
 mqtt_connected = false
 available_update_url = nil
 
@@ -143,137 +143,9 @@ function parse(response_json)
 
   local ok, response = pcall(cjson.decode, response_json)
   if ok then
-
-    local upd = response['update']
-    if upd then
-      print("* THiNX: UPDATE: ", cjson.encode(reg))
-
-      local mac = upd['mac']
-      local commit = upd['commit']
-      local version = upd['version']
-      local url = upd['url']
-
-      if commit == THINX_COMMIT_ID and version == THINX_FIRMWARE_VERSION then
-        print("*TH: firmware has same commit_id as current and update availability is stored. Firmware has been installed.")
-        available_update_url = nil;
-          save_device_info();
-          notify_on_successful_update();
-          return
-      else
-        print("*TH: Info: firmware has same commit_id as current and no update is available.")
-      end
-
-      if THINX_AUTO_UPDATE == false then
-          send_update_question()
-      else
-          println("Starting update...")
-          if url ~= null then
-            available_update_url = url
-            save_device_info()
-            if url then
-                print("*TH: Force update URL:" .. url);
-                thinx_update(url)
-            end
-            return
-      end
-    end
-
-    local reg = response['registration']
-    if reg then
-
-      local status = reg['status']
-
-      if status == "OK" then
-        print("* THiNX: REGISTRATION: ", cjson.encode(reg))
-        if reg['apikey'] ~= nil then
-          THINX_API_KEY = reg['apikey']
-        end
-        if reg['alias'] ~= nil then
-          THINX_ALIAS = reg['alias']
-        end
-        if reg['owner'] ~= nil then
-          THINX_OWNER = reg['owner']
-        end
-        if reg['udid'] ~= nil then
-          THINX_UDID = reg['udid']
-        end
-        save_device_info()
-
-        -- Check current firmware based on commit id and store Updated state...
-        local commit = reg['commit']
-        print("commit: " .. commit)
-
-        -- Check current firmware based on version and store Updated state...
-        local version = reg['version']
-        print("version: " .. version)
-
-        if commit == THINX_COMMIT_ID and version == THINX_FIRMWARE_VERSION_SHORT then
-          if available_update_url ~= nil then
-            available_update_url = nil
-            save_device_info()
-            notify_on_successful_update()
-          end
-            print("*TH: Info: firmware has same commit_id as current and no update is available.")
-        end
-
-        save_device_info()
-
-      else if status == "FIRMWARE_UPDATE" then
-
-        local mac = reg['mac']
-        print("mac: "+mac);
-        -- TODO: must be current or 'ANY'
-
-        -- should not be same except for forced update
-        local commit = reg['commit']
-        if commit == THINX_COMMIT_ID then
-          print("*TH: Warning: new firmware has same commit_id as current.")
-        end
-
-        local version = reg['version']
-        print("version: "..version)
-
-        print("Starting update...")
-
-        local update_url = reg['url']
-        if update_url ~= nil then
-          print("*TH: Running update with URL:" + update_url)
-          thinx_update(update_url)
-        end
-
-      else
-        print("Nothing to do...")
-      end
-
-    end
-
-    local no = response['notification']
-    if no then
-      print("* THiNX: NOTIFICATION: ", cjson.encode(no))
-      local type = no['response_type']
-
-      if type == "bool" or type == "boolean" then
-        local response = no['response']
-        if response == true then
-          print("User allowed update using boolean.")
-          thinx_update(available_update_url) -- should fetch OTT without url
-        else
-          print("User denied update using boolean.")
-        end
-      end
-
-      if type == "bool" or type == "boolean" then
-        local response = no['response']
-        if response == "yes" then
-          print("User allowed update using boolean.")
-          thinx_update(available_update_url) -- should fetch OTT without url
-        else
-          print("User denied update using boolean.")
-        end
-      end
-
-    end
-
+    parse_update(json)
+    parse_registration(response)
+    parse_notification(response)
   else
     print("* THiNX: JSON could not be parsed:" .. response_json)
   end
@@ -281,7 +153,7 @@ function parse(response_json)
   if THINX_UDID == "" then
     print("* THiNX: MQTT cannot be used until UDID will be assigned.")
   else
-    do_mqtt()
+    thinx_mqtt()
   end
 end
 
@@ -372,12 +244,14 @@ end
 -- MQTT
 --
 
-function do_mqtt()
+function thinx_mqtt()
 
+    -- >> this should not be needed at all
     if THINX_API_KEY == nil then
-        print("* THiNX: Reloading vars...")
+        print("* THiNX: DO-NOT-REMOVE: Reloading vars???")
         dofile("config.lua") -- max require configuration reload..
     end
+    -- << until here
 
     restore_device_info()
 
@@ -386,13 +260,8 @@ function do_mqtt()
         return;
     end
 
-
-
     print("* THiNX: Initializing MQTT client "..THINX_UDID.." / "..THINX_API_KEY)
-    mqtt_client = mqtt.Client(node.chipid(), KEEPALIVE, THINX_UDID, THINX_API_KEY, CLEANSESSION)
-
-
-
+    mqtt_client = mqtt.Client(node.chipid(), KEEPALIVE, THINX_UDID, THINX_API_KEY, 0)
     mqtt_client:lwt(mqtt_status_channel(), thx_disconnected_response, MQTT_LWT_QOS, MQTT_LWT_RETAIN)
 
     -- subscribe to device channel and publish to status channel
@@ -403,7 +272,6 @@ function do_mqtt()
         client:publish(mqtt_status_channel(), registration_json_body(), MQTT_QOS, 0)
         client:publish(mqtt_status_channel(), thx_connected_response, MQTT_QOS, MQTT_RETAIN)
       end)
-
 
     mqtt_client:on("offline", function(client)
         print ("* THiNX: m:offline!!!")
@@ -448,18 +316,152 @@ function process_mqtt(payload_json)
     local msg = payload['message']
     if msg ~= nil then
       print("* THiNX: Incoming MQTT message: " .. msg)
+      parse(msg)
     end
   else
       print("* THiNX: Processing MQTT payload failed: " .. payload_json)
   end
 end
 
+function parse_notification(json)
+  local no = response['notification']
+  if no then
+    print("* THiNX: NOTIFICATION: ", cjson.encode(no))
+    local type = no['response_type']
+
+    if type == "bool" or type == "boolean" then
+      local response = no['response']
+      if response == true then
+        print("User allowed update using boolean.")
+        thinx_update(available_update_url) -- should fetch OTT without url
+      else
+        print("User denied update using boolean.")
+      end
+    end
+
+    if type == "string" or type == "String" then
+      local response = no['response']
+      if response == "yes" then
+        print("User allowed update using string.")
+        thinx_update(available_update_url) -- should fetch OTT without url
+      else
+        print("User denied update using string.")
+      end
+    end
+  end
+end
+
 function parse_registration(json)
-  -- TODO: extract
+  local reg = response['registration']
+  if reg then
+
+    local status = reg['status']
+
+    if status == "OK" then
+      print("* THiNX: REGISTRATION: ", cjson.encode(reg))
+      if reg['apikey'] ~= nil then
+        THINX_API_KEY = reg['apikey']
+      end
+      if reg['alias'] ~= nil then
+        THINX_ALIAS = reg['alias']
+      end
+      if reg['owner'] ~= nil then
+        THINX_OWNER = reg['owner']
+      end
+      if reg['udid'] ~= nil then
+        THINX_UDID = reg['udid']
+      end
+      save_device_info()
+
+      -- Check current firmware based on commit id and store Updated state...
+      local commit = reg['commit']
+      print("commit: " .. commit)
+
+      -- Check current firmware based on version and store Updated state...
+      local version = reg['version']
+      print("version: " .. version)
+
+      if commit == THINX_COMMIT_ID and version == THINX_FIRMWARE_VERSION_SHORT then
+        if available_update_url ~= nil then
+          available_update_url = nil
+          save_device_info()
+          notify_on_successful_update()
+        end
+          print("*TH: Info: firmware has same commit_id as current and no update is available.")
+      end
+
+      save_device_info()
+
+    else if status == "FIRMWARE_UPDATE" then
+
+      local mac = reg['mac']
+      print("mac: "+mac);
+      -- TODO: must be current or 'ANY'
+
+      -- should not be same except for forced update
+      local commit = reg['commit']
+      if commit == THINX_COMMIT_ID then
+        print("*TH: Warning: new firmware has same commit_id as current.")
+      end
+
+      local version = reg['version']
+      print("version: "..version)
+
+      print("Starting update...")
+
+      local update_url = reg['url']
+      if update_url ~= nil then
+        print("*TH: Running update with URL:" + update_url)
+        thinx_update(update_url)
+      else
+        print("*TH: Update is available but URL unknown. Requesting OTT...")
+
+        -- TODO: FIXME: ADD OTT REQUEST and MULTIFILE FETCH!
+
+
+      end
+
+    else
+      print("Nothing to do...")
+    end
+
+  end
 end
 
 function parse_update(json) {
-  -- TODO: extract
+  local upd = response['update']
+  if upd then
+    print("* THiNX: UPDATE: ", cjson.encode(reg))
+
+    local mac = upd['mac']
+    local commit = upd['commit']
+    local version = upd['version']
+    local url = upd['url']
+
+    if commit == THINX_COMMIT_ID and version == THINX_FIRMWARE_VERSION then
+      print("*TH: firmware has same commit_id as current and update availability is stored. Firmware has been installed.")
+      available_update_url = nil;
+      save_device_info();
+      notify_on_successful_update();
+      return
+    else
+      print("*TH: Info: firmware has same commit_id as current and no update is available.")
+    end
+
+    if THINX_AUTO_UPDATE == false then
+        send_update_question()
+    else
+        print("Starting update...")
+        if url ~= null then
+          available_update_url = url
+          save_device_info()
+          if available_update_url then
+              print("*TH: Force update URL:" .. available_update_url);
+              thinx_update(available_update_url)
+          end
+          return
+    end
+  end
 end
 
 function notify_on_successful_update()
@@ -474,9 +476,9 @@ end
 function send_update_question()
   if mqtt_client ~= null then
     client:publish(mqtt_status_channel(), thx_update_question, MQTT_LWT_QOS, MQTT_LWT_RETAIN)
-    print("notify_on_successful_update: sent")
+    print("send_update_question: sent")
   else
-    print("notify_on_successful_update: Device updated but MQTT not active to notify. TODO: Store.")
+    print("send_update_question: Device updated but MQTT not active to notify. TODO: Store.")
   end
 end
 
@@ -507,7 +509,7 @@ function update_from_url(name, url)
         local success = update_file(name, data)
         if success then
           print("* THiNX: Updated from URL, rebooting...")
-          client:publish(mqtt_status_channel(), thx_reboot_response(), MQTT_LWT_QOS, MQTT_LWT_RETAIN)
+          client:publish(mqtt_status_channel(), thx_reboot_response, MQTT_LWT_QOS, MQTT_LWT_RETAIN)
           node.restart()
         else
           file.rename("thinx.bak", "thinx.lua")
@@ -524,10 +526,10 @@ end
 function update_and_reboot(payload)
 
   -- update variants
+  local type  = payload['type'] -- defaults to file
   local files = payload['files']
   local ott   = payload['ott']
   local url   = payload['url']
-  local type  = payload['type']
   local name  = "thinx.lua"
 
   -- as a default for NodeMCU, files are updated instead of whole firmware
@@ -538,19 +540,19 @@ function update_and_reboot(payload)
   if files then
     file.rename("thinx.lua", "thinx.bak") -- backup
     local success = false
-      for file in files do
-        local name = file['name']
-        local data = file['data']
-        local url = file['url']
-        if (name and data) then
-          success = update_file(name, data)
-        elseif (name and url) then
-          update_from_url(name, url)
-          success = true
-        else
-          print("* THiNX: MQTT Update payload has invalid file descriptors.")
-        end
+    for file in files do
+      local name = file['name']
+      local data = file['data']
+      local url = file['url']
+      if (name and data) then
+        success = update_file(name, data)
+      elseif (name and url) then
+        update_from_url(name, url)
+        success = true -- why?
+      else
+        print("* THiNX: MQTT Update payload has invalid file descriptors.")
       end
+    end
   else
     print("* THiNX: MQTT Update payload is missing file descriptors.")
   end
@@ -579,7 +581,7 @@ function update_and_reboot(payload)
 
   if success then
     print("* THiNX: Update successful, rebooting...")
-    client:publish(mqtt_status_channel(), thx_reboot_response(), MQTT_LWT_QOS, MQTT_LWT_RETAIN)
+    client:publish(mqtt_status_channel(), thx_reboot_response, MQTT_LWT_QOS, MQTT_LWT_RETAIN)
     node.restart()
   else
     file.rename("thinx.bak", "thinx.lua")
@@ -594,7 +596,7 @@ end
 
 function thinx()
     restore_device_info()
-    connect(wifi_ssid, wifi_password) -- calls register an mqtt
+    connect(THINX_ENV_SSID, THINX_ENV_PASS) -- calls register an mqtt, uses Environment variables
 end
 
 thinx()

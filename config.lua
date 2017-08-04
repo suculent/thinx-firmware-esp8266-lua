@@ -25,5 +25,5 @@ THINX_APP_VERSION = "1.0.0"
 
 -- BEGINNING OF USER FILE
 
-wifi_ssid="VINARNA"
-wifi_password="najednicku"
+THINX_ENV_SSID = 'THiNX-IoT'
+THINX_ENV_PASS = '<enter-your-ssid-password>'
