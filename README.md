@@ -1,9 +1,11 @@
 # thinx-firmware-esp8266-lua
+
 THiNX ESP8266 Vanilla Firmware for NodeMCU (LUA)
 
 ### Prerequisites
 
 * [Free THiNX Account](https://rtm.thinx.cloud)
+
 * ESP8266-based microcontroller
 * NodeMCU firmware with following modules: `cjson, mqtt, net, wifi`
 * ESPlorer or any other compatible IDE
@@ -37,7 +39,8 @@ THiNX ESP8266 Vanilla Firmware for NodeMCU (LUA)
 
 7. In case the device has `auto_update` enabled and source code update from attached attached repository is available, it should perform self-update and reboot.
 
+8. THiNX now supports building whole NodeMCU firmware using the dockerized builder. In near future, it will allow for module customization.
+
 ### Future features
 
-* Binary Firmware Updater
 * Custom Firmware Builder
