@@ -143,9 +143,9 @@ function parse(response_json)
 
   local ok, response = pcall(cjson.decode, response_json)
   if ok then
-    parse_update(json)
-    parse_registration(response)
-    parse_notification(response)
+    parse_update(response_json)
+    parse_registration(response_json)
+    parse_notification(response_json)
   else
     print("* THiNX: JSON could not be parsed:" .. response_json)
   end
@@ -428,7 +428,7 @@ function parse_registration(json)
   end
 end
 
-function parse_update(json) {
+function parse_update(json)
   local upd = response['update']
   if upd then
     print("* THiNX: UPDATE: ", cjson.encode(reg))
