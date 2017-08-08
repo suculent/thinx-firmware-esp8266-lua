@@ -26,8 +26,8 @@ available_update_url = nil
 thx_connected_response = "{ \"status\" : \"connected\" }"
 thx_disconnected_response = "{ \"status\" : \"disconnected\" }"
 thx_reboot_response = "{ \"status\" : \"rebooting\" }"
-thx_update_question = "{ title: \"Update Available\", body: \"There is an update available for this device. Do you want to install it now?\", type: \"actionable\", response_type: \"bool\" }";
-thx_update_success = "{ title: \"Update Successful\", body: \"The device has been successfully updated.\", type: \"success\" }";
+thx_update_question = "{ title: \"Update Available\", body: \"There is an update available for this device. Do you want to install it now?\", type: \"actionable\", response_type: \"bool\" }"
+thx_update_success = "{ title: \"Update Successful\", body: \"The device has been successfully updated.\", type: \"success\" }"
 
 function registration_json_body()
   return '{"registration": {"mac": "'..thinx_device_mac()..'", "firmware": "'..THINX_FIRMWARE_VERSION..'", "commit": "' .. THINX_COMMIT_ID .. '", "version": "'..THINX_FIRMWARE_VERSION_SHORT..'", "checksum": "' .. THINX_COMMIT_ID .. '", "alias": "' .. THINX_ALIAS .. '", "udid" :"' ..THINX_UDID..'", "owner" : "'..THINX_OWNER..'", "platform" : "nodemcu" }}'
