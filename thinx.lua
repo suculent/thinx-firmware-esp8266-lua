@@ -1,7 +1,7 @@
 -- THiNX Example device application
 -- Requires following nodemcu modules: http,mqtt,net,cjson,wifi
 
-print ("* THiNX:Client v0.9.26") -- compatible with API 1.9.29
+print ("* THiNX:Client v0.9.33") -- compatible with API 0.9.29
 
 dofile("config.lua") -- must contain 'ssid', 'password' because this firmware does not currently support captive portal
 
