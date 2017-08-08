@@ -29,7 +29,7 @@ THiNX ESP8266 Vanilla Firmware for NodeMCU (LUA)
 
 2. After validating your account, go to API Keys page and create new **API Key** for this device _(it will be shown only once to you, make sure you have a copy in your clipboard)_.
 
-3. Insert this API Key as `THINX_API_KEY` along with your owner-id as `THiNX_OWNER_ID` into the **config.lua** file. You should also adjust your `wifi_ssid` and `wifi_password` credentials, until those are injected using THiNX Environment Variables.
+3. Insert this API Key as `THINX_API_KEY` along with your owner-id as `THiNX_OWNER_ID` into the **config.lua** file. You should also adjust your `wifi_ssid` and `wifi_password` credentials, until those are injected using THiNX Environment Variables or captive portal will be supported (you're free to submit a PR).
 
 4. **Upload** `thinx.lua`, `config.lua` and `init.lua` to your ESP8266 (e.g. using ESPTool) and reboot.
 
