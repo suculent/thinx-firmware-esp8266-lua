@@ -139,6 +139,9 @@ function get_device_info()
   if THINX_UDID ~= "" then
     device_info['udid'] = THINX_UDID
   end
+  if THINX_AUTO_UPDATE ~= "" then
+    device_info['auto_update'] = THINX_AUTO_UPDATE
+  end
   if available_update_url ~= nil then
     device_info['available_update_url'] = available_update_url
   end
@@ -157,6 +160,9 @@ function apply_device_info(info)
     end
     if info['apikey'] ~= nil then
         THINX_API_KEY = info['apikey']
+    end
+    if info['auto_update'] ~= nil then
+        THINX_AUTO_UPDATE = info['auto_update']
     end
     if info['udid'] ~= nil then
         THINX_UDID = info['udid']
