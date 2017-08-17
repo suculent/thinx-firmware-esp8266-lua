@@ -1,0 +1,50 @@
+nodemcu:
+  modules:
+    c:
+      - coap
+      - crypto
+      - dhtlib
+      - driver
+      - esp-gdbstub
+      - fatfs
+      - http
+      - include
+      - libc
+      - lua
+      - lwip
+      - mapfile
+      - mbedtls
+      - misc
+      - modules
+      - mqtt
+      - net
+      - pcm
+      - platform
+      - pm
+      - sjson
+      - smart
+      - spiffs
+      - swTimer
+      - task
+      - tsl2561
+      - u8glib
+      - ucglib
+      - user
+      - websocket
+      - wofs
+    lua:
+      - bh1750
+      - bmp085
+      - dht_lib
+      - ds18b20
+      - ds3231
+      - email
+      - hdc1000
+      - http
+      - lm92
+      - mcp23008
+      - redis
+      - si7021
+      - thinx
+      - tsl2561
+      - yeelink
