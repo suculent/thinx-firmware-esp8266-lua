@@ -1,9 +1,13 @@
 -- THiNX Example device application
--- Requires following nodemcu modules: http,mqtt,net,cjson,wifi
+-- Customize your firmware at nodemcu-build.com
+-- THiNX requires following modules: http,mqtt,net,cjson,wifi
+-- Minimum hardware: ESP-01 512kB (2mb)
 
-print ("* THiNX:Client v0.9.33") -- compatible with API 0.9.29
+_G.cjson = sjson
 
 dofile("config.lua") -- must contain 'ssid', 'password' because this firmware does not currently support captive portal
+
+print ("* THiNX:Client v" .. THINX_FIRMWARE_VERSION_SHORT) -- compatible with API 0.9.29
 
 mqtt_client = nil
 mqtt_connected = false
@@ -67,12 +71,12 @@ function thinx_register()
             'User-Agent: THiNX-Client\r\n'
   data = registration_json_body()
   http.post(url, headers, data,
-    function(code, data)
+    function(code, rdata)
       if (code < 0) then
         print("* THiNX: HTTP request failed")
       else
         if code == 200 then
-          parse(data)
+          parse(rdata)
       end
     end
   end)
@@ -141,6 +145,9 @@ function get_device_info()
   end
   if THINX_AUTO_UPDATE ~= "" then
     device_info['auto_update'] = THINX_AUTO_UPDATE
+  end
+  if THINX_UDID ~= "" then
+    device_info['udid'] = THINX_UDID
   end
   if available_update_url ~= nil then
     device_info['available_update_url'] = available_update_url
@@ -254,12 +261,13 @@ function process_mqtt(payload_json)
 end
 
 function parse_notification(json)
-  local no = response['notification']
+  local no = cjson.decode(json).notification
   if no then
-    local type = no['response_type']
+    print("Parsing notification...")
+    local type = no.response_type
 
     if type == "bool" or type == "boolean" then
-      local response = no['response']
+      local response = no.response
       if response == true then
         thinx_update(available_update_url) -- should fetch OTT without url
       end
@@ -271,13 +279,15 @@ function parse_notification(json)
         thinx_update(available_update_url) -- should fetch OTT without url
       end
     end
+  else
+    print("Not a notification")
   end
 end
 
-function parse_registration(json)
-  local reg = response['registration']
-  if reg then
-    local status = reg['status']
+function parse_registration(json)  
+  local reg = cjson.decode(json).registration
+  if reg ~= nil then 
+    local status = reg.status
     if status == "OK" then
       if reg['apikey'] ~= nil then
         THINX_API_KEY = reg['apikey']
@@ -301,23 +311,32 @@ function parse_registration(json)
           notify_on_successful_update()
         end
       end
+      print("*TH: Saving checking data.")
       save_device_info()
       return
+    else
+      print("*TH: Registration failed, no success.")
     end
+    
     if status == "FIRMWARE_UPDATE" then
       local update_url = reg['url']
       if update_url ~= nil then
-        print("*TH: Running update with URL:" + update_url)
+        print("*TH: Running update with URL:" .. update_url)
         thinx_update(update_url)
       end
+      return
     end
+    print("Unknown status." .. status)
+    else
+      print("no registration in "..json)
+    return
   end
 end
 
 function parse_update(json)
-  local upd = response['update']
-
+  local reg = cjson.decode(json).update    
   if upd then
+    print("Parsing update...")
     local mac = upd['mac']
     local commit = upd['commit']
     local version = upd['version']
@@ -342,6 +361,8 @@ function parse_update(json)
           return
         end
     end
+  else
+    print("Not an update")
   end
 end
 
