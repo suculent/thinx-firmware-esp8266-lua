@@ -2,6 +2,8 @@
 
 THiNX ESP8266 Vanilla Firmware for NodeMCU (LUA)
 
+Can be assembled and managed by [Remote Things Management](https://rtm.thinx.cloud) based on [THiNX OpenSource IoT platform](https://thinx.cloud).
+
 ### Prerequisites
 
 * [Free THiNX Account](https://rtm.thinx.cloud)
