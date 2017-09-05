@@ -284,22 +284,27 @@ function parse_notification(json)
   end
 end
 
-function parse_registration(json)  
+function parse_registration(json)
   local reg = cjson.decode(json).registration
-  if reg ~= nil then 
+  if reg ~= nil then
+    print("*TH: Registration: "..json)
     local status = reg.status
     if status == "OK" then
       if reg['apikey'] ~= nil then
         THINX_API_KEY = reg['apikey']
+        print("*TH: API Key: "..THINX_API_KEY)
       end
       if reg['alias'] ~= nil then
         THINX_ALIAS = reg['alias']
+        print("*TH: Alias: "..THINX_ALIAS)
       end
       if reg['owner'] ~= nil then
         THINX_OWNER = reg['owner']
+        print("*TH: Owner: "..THINX_OWNER)
       end
       if reg['udid'] ~= nil then
         THINX_UDID = reg['udid']
+        print("*TH: UDID: "..THINX_UDID)
       end
       save_device_info()
       local commit = reg['commit']
@@ -317,7 +322,7 @@ function parse_registration(json)
     else
       print("*TH: Registration failed, no success.")
     end
-    
+
     if status == "FIRMWARE_UPDATE" then
       local update_url = reg['url']
       if update_url ~= nil then
@@ -334,7 +339,7 @@ function parse_registration(json)
 end
 
 function parse_update(json)
-  local reg = cjson.decode(json).update    
+  local reg = cjson.decode(json).update
   if upd then
     print("Parsing update...")
     local mac = upd['mac']
