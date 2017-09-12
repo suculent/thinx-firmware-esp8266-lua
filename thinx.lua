@@ -45,16 +45,16 @@ MQTT_QOS = 0
 MQTT_RETAIN = 1
 MQTT_DEVICE_QOS = 2
 
-function connect(ssid, password)
+function connect(THINX_ENV_SSID, THINX_ENV_PASS)
   wifi.setmode(wifi.STATION)
-  wifi.sta.config(ssid, password)
+  wifi.sta.config{ssid=THINX_ENV_SSID, pwd=THINX_ENV_PASS}
   wifi.sta.connect()
   tmr.alarm(1, 5000, 1, function()
     if wifi.sta.getip() == nil then
-      print("* THiNX: Connecting " .. ssid .. "...")
+      print("* THiNX: Connecting " .. THINX_ENV_SSID .. "...")
     else
       tmr.stop(1)
-      print("* THiNX: Connected to " .. ssid .. ", IP is "..wifi.sta.getip())
+      print("* THiNX: Connected to " .. THINX_ENV_SSID .. ", IP is "..wifi.sta.getip())
       thinx_register()
     end
   end)
@@ -114,12 +114,14 @@ end
 -- RESPONSE PARSER
 
 function parse(response_json)
-
   local ok, response = pcall(cjson.decode, response_json)
   if ok then
-    -- parse_update(response_json)
-    parse_registration(response_json)
-    parse_notification(response_json)
+    print("parse_update")
+    parse_update(response)
+    print("parse_registration")
+    parse_registration(response)
+    print("parse_notification")
+    parse_notification(response)
   end
 
   if THINX_UDID ~= "" then
@@ -261,7 +263,7 @@ function process_mqtt(payload_json)
 end
 
 function parse_notification(json)
-  local no = cjson.decode(json).notification
+  local no = json.notification
   if no then
     print("Parsing notification...")
     local type = no.response_type
@@ -285,9 +287,9 @@ function parse_notification(json)
 end
 
 function parse_registration(json)
-  local reg = cjson.decode(json).registration
+  local reg = json.registration
   if reg ~= nil then
-    print("*TH: Registration: "..json)
+    print("*TH: Registration: ")
     local status = reg.status
     if status == "OK" then
       if reg['apikey'] ~= nil then
@@ -339,7 +341,7 @@ function parse_registration(json)
 end
 
 function parse_update(json)
-  local reg = cjson.decode(json).update
+  local reg = json.update
   if upd then
     print("Parsing update...")
     local mac = upd['mac']
