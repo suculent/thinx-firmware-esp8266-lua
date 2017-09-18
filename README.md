@@ -9,7 +9,7 @@ Can be assembled and managed by [Remote Things Management](https://rtm.thinx.clo
 * [Free THiNX Account](https://rtm.thinx.cloud)
 
 * ESP8266-based microcontroller
-* NodeMCU firmware with following modules: `cjson, mqtt, net, wifi`
+* NodeMCU firmware with following modules: `http`, `cjson/sjson`, `mqtt`, `net`, `wifi`
 * ESPlorer or any other compatible IDE
 
 ### Tools
