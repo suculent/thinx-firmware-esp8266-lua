@@ -1,4 +1,7 @@
-nodemcu:
+nodemcu:  
+  build:
+    type: firmware
+    float: true
   modules:
     c:
       - coap

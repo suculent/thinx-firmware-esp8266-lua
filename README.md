@@ -43,6 +43,68 @@ Can be assembled and managed by [Remote Things Management](https://rtm.thinx.clo
 
 8. THiNX now supports building whole NodeMCU firmware using the dockerized builder. In near future, it will allow for module customization.
 
-### Future features
+### Custom firmware
 
-* Custom Firmware Builder
+You can build your own custom firmware using [nodemcu-docker-build](). 
+
+Example of `thinx.yml` file used to remote-configure the builder:
+
+* Build type can be either `firmware` (build firmware) or `lua` (application files only).
+* If you need to build firmware with integer support, set `float: false`
+
+```
+nodemcu:  
+  build:
+    type: firmware
+    float: true
+  modules:
+    c:
+      - coap
+      - crypto
+      - dhtlib
+      - driver
+      - esp-gdbstub
+      - fatfs
+      - http
+      - include
+      - libc
+      - lua
+      - lwip
+      - mapfile
+      - mbedtls
+      - misc
+      - modules
+      - mqtt
+      - net
+      - pcm
+      - platform
+      - pm
+      - sjson
+      - smart
+      - spiffs
+      - swTimer
+      - task
+      - tsl2561
+      - u8glib
+      - ucglib
+      - user
+      - websocket
+      - wofs
+    lua:
+      - bh1750
+      - bmp085
+      - dht_lib
+      - ds18b20
+      - ds3231
+      - email
+      - hdc1000
+      - http
+      - lm92
+      - mcp23008
+      - redis
+      - si7021
+      - thinx
+      - tsl2561
+      - yeelink
+
+```
