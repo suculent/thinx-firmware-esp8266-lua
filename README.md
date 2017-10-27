@@ -1,6 +1,6 @@
 # thinx-firmware-esp8266-lua
 
-THiNX ESP8266 Vanilla Firmware for NodeMCU (LUA)
+THiNX ESP8266 Vanilla Firmware for NodeMCU (Lua)
 
 Can be assembled and managed by [Remote Things Management](https://rtm.thinx.cloud) based on [THiNX OpenSource IoT platform](https://thinx.cloud).
 
@@ -14,11 +14,11 @@ Can be assembled and managed by [Remote Things Management](https://rtm.thinx.clo
 
 ### Tools
 
-* [NodeMCU Firmware Builder](https://nodemcu-build.com) - customize your NodeMCU LUA firmware
+* [NodeMCU Firmware Builder](https://nodemcu-build.com) - customize your NodeMCU Lua firmware
 
 * [ESPTool](https://github.com/espressif/esptool) - upload your firmware, erase flash, de-brick
 
-* [ESPlorer](https://github.com/4refr0nt/ESPlorer) - edit/upload your LUA code to device
+* [ESPlorer](https://github.com/4refr0nt/ESPlorer) - edit/upload your Lua code to device
 
 * [MQTT.fx](http://www.mqttfx.org) - subscribe/post to the message queue
 
